@@ -26,8 +26,8 @@ export default async function (instance: string, user?: string, pass?: string): 
             "Content-Type": "application/x-www-form-urlencoded"
         }
     });
-    var responseBody = loginResponse.data;
-    var ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
+    let responseBody = loginResponse.data;
+    let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
     
     return {
         "token": ck,

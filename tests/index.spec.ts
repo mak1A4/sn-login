@@ -4,7 +4,7 @@ const h2p = require('html2plaintext')
 
 describe("Test Service-Now Login", () => {
     it("Execute a script in global scope must work", async () => {
-        let loginResponse = await snlogin(process.env.SN_INSTANCE, process.env.SN_USER, process.env.SN_PASS);
+        let loginResponse = await snlogin(process.env.SN_INSTANCE as string, process.env.SN_USER, process.env.SN_PASS);
         let wclient = loginResponse.wclient;
 
         let testUrl = "https://" + process.env.SN_INSTANCE + ".service-now.com/sys.scripts.do";

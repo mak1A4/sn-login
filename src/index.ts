@@ -3,13 +3,13 @@ import { CookieJar } from 'tough-cookie';
 import { wrapper } from 'axios-cookiejar-support';
 import { URLSearchParams } from "url";
 
-interface loginReturnType {
+export interface LoginData {
     token: string,
-    cookieJar: CookieJar,
-    wclient: AxiosInstance
+    wclient: AxiosInstance,
+    cookieJar?: CookieJar
 }
 
-export default async function (instance?: string, user?: string, pass?: string): Promise<loginReturnType> {
+export default async function (instance: string, user?: string, pass?: string): Promise<LoginData> {
 
     let jar = new CookieJar();
     const snClient = wrapper(axios.create({ jar }));

@@ -42,18 +42,18 @@ var axios_cookiejar_support_1 = require("axios-cookiejar-support");
 var url_1 = require("url");
 function default_1(instance, user, pass) {
     return __awaiter(this, void 0, void 0, function () {
-        var jar, snClient, instanceUrl, loginFormData, loginResponse, responseBody, ck;
+        var jar, instanceURL, snClient, loginFormData, loginResponse, responseBody, ck;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     jar = new tough_cookie_1.CookieJar();
-                    snClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar }));
-                    instanceUrl = "https://".concat(instance, ".service-now.com/login.do");
+                    instanceURL = "https://".concat(instance, ".service-now.com");
+                    snClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
                     loginFormData = new url_1.URLSearchParams({
                         "user_name": user, "user_password": pass,
                         "remember_me": "true", "sys_action": "sysverb_login"
                     }).toString();
-                    return [4 /*yield*/, snClient.post(instanceUrl, loginFormData, {
+                    return [4 /*yield*/, snClient.post("/login.do", loginFormData, {
                             headers: {
                                 "Connection": "keep-alive",
                                 "Cache-Control": "max-age=0",

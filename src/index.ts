@@ -12,14 +12,14 @@ export interface LoginData {
 export default async function (instance: string, user?: string, pass?: string): Promise<LoginData> {
 
     let jar = new CookieJar();
-    const snClient = wrapper(axios.create({ jar }));
+    let instanceURL: string = `https://${instance}.service-now.com`;
+    const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
 
-    let instanceUrl = `https://${instance}.service-now.com/login.do`;
     let loginFormData = new URLSearchParams({
         "user_name": user, "user_password": pass,
         "remember_me": "true", "sys_action": "sysverb_login"
     } as any).toString();
-    let loginResponse = await snClient.post(instanceUrl, loginFormData, {
+    let loginResponse = await snClient.post("/login.do", loginFormData, {
         headers: {
             "Connection": "keep-alive",
             "Cache-Control": "max-age=0",

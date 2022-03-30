@@ -28,6 +28,7 @@ export default async function (instance: string, user?: string, pass?: string): 
     });
     let responseBody = loginResponse.data;
     let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
+    snClient.defaults.headers.common["X-UserToken"] = ck;
     
     return {
         "token": ck,

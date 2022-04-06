@@ -32,6 +32,7 @@
   "dependencies": {
     "axios": "^0.26.0",
     "axios-cookiejar-support": "^2.0.3",
+    "keytar": "^7.9.0",
     "tough-cookie": "^4.0.0"
   }
 }

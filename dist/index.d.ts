@@ -5,4 +5,5 @@ export interface LoginData {
     wclient: AxiosInstance;
     cookieJar?: CookieJar;
 }
-export default function (instance: string, user?: string, pass?: string): Promise<LoginData>;
+declare function login(instance: string, user: string, mfa?: string): Promise<LoginData>;
+export default login;

@@ -4,8 +4,12 @@
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+      "@mak1A4/sn-login": "bin/sn-login",
+      "sn-login": "bin/sn-login"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node build-cli.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -21,6 +25,7 @@
   "homepage": "https://github.com/mak1A4/sn-login#readme",
   "devDependencies": {
     "@types/jest": "^27.4.1",
+    "@types/minimist": "^1.2.2",
     "@types/node": "^17.0.23",
     "@types/tough-cookie": "^4.0.1",
     "dotenv": "^16.0.0",
@@ -33,6 +38,7 @@
     "axios": "^0.26.0",
     "axios-cookiejar-support": "^2.0.3",
     "keytar": "^7.9.0",
+    "minimist": "^1.2.6",
     "tough-cookie": "^4.0.0"
   }
 }

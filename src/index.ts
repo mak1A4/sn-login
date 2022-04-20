@@ -10,24 +10,23 @@ export interface LoginData {
     cookieJar?: CookieJar
 }
 
-export default async function (instance: string, user?: string, pass?: string): Promise<LoginData> {
+async function login(instance: string, user: string, mfa?: string): Promise<LoginData>
+async function login(instance: string, user: string, pass?: string, mfa?: string): Promise<LoginData> {
 
     const INSTANCE_NAME = `${instance}.service-now.com`;
-    let credentials = await findCredentials(INSTANCE_NAME);
-    let password = pass;
-    if (credentials.length == 0 && instance && user && pass) {
-        await setPassword(INSTANCE_NAME, user, pass);
-    }
-    else if (user) {
-        pass = await getPassword(INSTANCE_NAME, user) as string;
-    }
-
     let jar = new CookieJar();
     let instanceURL: string = `https://${INSTANCE_NAME}`;
     const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
 
+    let userPassword = pass;
+    if (!userPassword) {
+        let password = await getPassword(instance, user);
+        if (password) userPassword = password;
+        else throw "Couldn't find user password";
+    }
+    if (mfa) userPassword += mfa;
     let loginFormData = new URLSearchParams({
-        "user_name": user, "user_password": password,
+        "user_name": user, "user_password": userPassword,
         "remember_me": "true", "sys_action": "sysverb_login"
     } as any).toString();
     let loginResponse = await snClient.post("/login.do", loginFormData, {
@@ -47,3 +46,4 @@ export default async function (instance: string, user?: string, pass?: string): 
         "wclient": snClient
     };
 }
+export default login;

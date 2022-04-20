@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -36,57 +37,56 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var axios_1 = require("axios");
-var tough_cookie_1 = require("tough-cookie");
-var axios_cookiejar_support_1 = require("axios-cookiejar-support");
-var url_1 = require("url");
 var keytar_1 = require("keytar");
-function login(instance, user, pass, mfa) {
-    return __awaiter(this, void 0, void 0, function () {
-        var INSTANCE_NAME, jar, instanceURL, snClient, userPassword, password, loginFormData, loginResponse, responseBody, ck;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    INSTANCE_NAME = "".concat(instance, ".service-now.com");
-                    jar = new tough_cookie_1.CookieJar();
-                    instanceURL = "https://".concat(INSTANCE_NAME);
-                    snClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
-                    userPassword = pass;
-                    if (!!userPassword) return [3 /*break*/, 2];
-                    return [4 /*yield*/, (0, keytar_1.getPassword)(instance, user)];
-                case 1:
-                    password = _a.sent();
-                    if (password)
-                        userPassword = password;
-                    else
-                        throw "Couldn't find user password";
-                    _a.label = 2;
-                case 2:
-                    if (mfa)
-                        userPassword += mfa;
-                    loginFormData = new url_1.URLSearchParams({
-                        "user_name": user, "user_password": userPassword,
-                        "remember_me": "true", "sys_action": "sysverb_login"
-                    }).toString();
-                    return [4 /*yield*/, snClient.post("/login.do", loginFormData, {
-                            headers: {
-                                "Connection": "keep-alive",
-                                "Cache-Control": "max-age=0",
-                                "Content-Type": "application/x-www-form-urlencoded"
-                            }
-                        })];
-                case 3:
-                    loginResponse = _a.sent();
-                    responseBody = loginResponse.data;
-                    ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
-                    snClient.defaults.headers.common["X-UserToken"] = ck;
-                    return [2 /*return*/, {
-                            "token": ck,
-                            "cookieJar": jar,
-                            "wclient": snClient
-                        }];
-            }
-        });
+var minimist = require("minimist");
+(function (argv) { return __awaiter(void 0, void 0, void 0, function () {
+    var parm, instanceUrl, _a, credList, printCredStr, userPass;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
+            case 0:
+                parm = minimist(argv.slice(2));
+                if (parm._[0] !== "find" && parm._[0] !== "set") {
+                    console.log("Supported Commands: find --instance \"mydevinstance\" --user \"admin\"");
+                    console.log("                    set --instance \"mydevinstance\" --user \"admin\" --pass \"123\"");
+                    return [2 /*return*/];
+                }
+                if (!parm.instance) {
+                    console.log("instance parameter is required");
+                    return [2 /*return*/];
+                }
+                instanceUrl = "".concat(parm.instance, ".service-now.com");
+                _a = parm._[0];
+                switch (_a) {
+                    case "find": return [3 /*break*/, 1];
+                    case "set": return [3 /*break*/, 6];
+                }
+                return [3 /*break*/, 7];
+            case 1:
+                if (!!parm.user) return [3 /*break*/, 3];
+                return [4 /*yield*/, (0, keytar_1.findCredentials)(instanceUrl)];
+            case 2:
+                credList = _b.sent();
+                printCredStr = credList.map(function (x) {
+                    return "user: " + x.account + ", password: " + x.password;
+                }).join("\n");
+                console.log(printCredStr);
+                return [3 /*break*/, 5];
+            case 3: return [4 /*yield*/, (0, keytar_1.getPassword)(instanceUrl, parm.user)];
+            case 4:
+                userPass = _b.sent();
+                console.log("password: " + userPass);
+                _b.label = 5;
+            case 5: return [3 /*break*/, 7];
+            case 6:
+                if (!parm.user || !parm.pass) {
+                    console.log("user and pass parameter are required");
+                    return [2 /*return*/];
+                }
+                (0, keytar_1.setPassword)(instanceUrl, parm.user, parm.pass);
+                console.log(instanceUrl);
+                console.log("Password for user [".concat(parm.user, "] has been set"));
+                _b.label = 7;
+            case 7: return [2 /*return*/];
+        }
     });
-}
-exports.default = login;
+}); })(process.argv);

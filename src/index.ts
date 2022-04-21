@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { CookieJar } from 'tough-cookie';
 import { wrapper } from 'axios-cookiejar-support';
 import { URLSearchParams } from "url";
-import { findCredentials, getPassword, setPassword } from 'keytar';
+import { getPassword } from 'keytar';
 
 export interface LoginData {
     token: string,
@@ -10,8 +10,9 @@ export interface LoginData {
     cookieJar?: CookieJar
 }
 
-async function login(instance: string, user: string, mfa?: string): Promise<LoginData>
-async function login(instance: string, user: string, pass?: string, mfa?: string): Promise<LoginData> {
+async function login(instance: string, user: string): Promise<LoginData>;
+async function login(instance: string, user: string, pass?: string): Promise<LoginData>;
+async function login(instance: string, user: string, pass?: string): Promise<LoginData> {
 
     const INSTANCE_NAME = `${instance}.service-now.com`;
     let jar = new CookieJar();
@@ -24,7 +25,6 @@ async function login(instance: string, user: string, pass?: string, mfa?: string
         if (password) userPassword = password;
         else throw "Couldn't find user password";
     }
-    if (mfa) userPassword += mfa;
     let loginFormData = new URLSearchParams({
         "user_name": user, "user_password": userPassword,
         "remember_me": "true", "sys_action": "sysverb_login"

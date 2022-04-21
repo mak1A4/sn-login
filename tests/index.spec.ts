@@ -3,10 +3,10 @@ import snlogin from "../src/index";
 const h2p = require('html2plaintext')
 
 test("Test Service-Now Login", async () => {
-    let loginResponse = await snlogin(
-        process.env.SN_INSTANCE as string,
-        process.env.SN_USER as string,
-        process.env.SN_PASS);
+    let instance = process.env.SN_INSTANCE as string;
+    let user = process.env.SN_USER as string;
+    let password = process.env.SN_PASS as string;
+    let loginResponse = await snlogin(instance, user, password);
     let wclient = loginResponse.wclient;
 
     let testUrl = "https://" + process.env.SN_INSTANCE + ".service-now.com/sys.scripts.do";

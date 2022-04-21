@@ -41,7 +41,7 @@ var tough_cookie_1 = require("tough-cookie");
 var axios_cookiejar_support_1 = require("axios-cookiejar-support");
 var url_1 = require("url");
 var keytar_1 = require("keytar");
-function login(instance, user, pass, mfa) {
+function login(instance, user, pass) {
     return __awaiter(this, void 0, void 0, function () {
         var INSTANCE_NAME, jar, instanceURL, snClient, userPassword, password, loginFormData, loginResponse, responseBody, ck;
         return __generator(this, function (_a) {
@@ -62,8 +62,6 @@ function login(instance, user, pass, mfa) {
                         throw "Couldn't find user password";
                     _a.label = 2;
                 case 2:
-                    if (mfa)
-                        userPassword += mfa;
                     loginFormData = new url_1.URLSearchParams({
                         "user_name": user, "user_password": userPassword,
                         "remember_me": "true", "sys_action": "sysverb_login"

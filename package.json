@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-      "@mak1A4/sn-login": "bin/sn-login",
-      "sn-login": "bin/sn-login"
+    "@mak1A4/sn-login": "bin/sn-login",
+    "sn-login": "bin/sn-login"
   },
   "scripts": {
     "build": "tsc && node build-cli.js",

@@ -1,3 +1,7 @@
+import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import axios, { AxiosInstance } from 'axios';
 import { CookieJar } from 'tough-cookie';
 import { wrapper } from 'axios-cookiejar-support';
@@ -10,14 +14,29 @@ export interface LoginData {
     cookieJar?: CookieJar
 }
 
+function encrypt(text: string, key: string): string {
+    let iv = crypto.randomBytes(16);
+    let keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
+	let cipher = crypto.createCipheriv("aes-256-ctr", Buffer.from(keyHash, "hex"), iv);
+	let encrypted = cipher.update(text);
+	encrypted = Buffer.concat([encrypted, cipher.final()]);
+	return iv.toString("hex") + ':' + encrypted.toString("hex");
+}
+
+function decrypt(text: string, key: string): string {
+    let textParts = text.split(":");
+	let iv = Buffer.from(textParts.shift() as string, "hex");
+	let encryptedText = Buffer.from(textParts.join(":"), "hex");
+    let keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
+	let decipher = crypto.createDecipheriv("aes-256-ctr", Buffer.from(keyHash, "hex"), iv);
+	let decrypted = decipher.update(encryptedText);
+	decrypted = Buffer.concat([decrypted, decipher.final()]);
+	return decrypted.toString();
+}
+
 async function login(instance: string, user: string): Promise<LoginData>;
 async function login(instance: string, user: string, pass?: string): Promise<LoginData>;
 async function login(instance: string, user: string, pass?: string): Promise<LoginData> {
-
-    const INSTANCE_NAME = `${instance}.service-now.com`;
-    let jar = new CookieJar();
-    let instanceURL: string = `https://${INSTANCE_NAME}`;
-    const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
 
     let userPassword = pass;
     if (!userPassword) {
@@ -25,6 +44,29 @@ async function login(instance: string, user: string, pass?: string): Promise<Log
         if (password) userPassword = password;
         else throw "Couldn't find user password";
     }
+
+    const INSTANCE_NAME = `${instance}.service-now.com`;
+    let instanceURL: string = `https://${INSTANCE_NAME}`;
+
+    let jar = new CookieJar();
+    let cookieFilePath = path.join(os.tmpdir(), `${instance}:${user}_cookie.json`);
+    if (fs.existsSync(cookieFilePath)) {
+        let encryptedCookieStr = fs.readFileSync(cookieFilePath, 'utf8');
+        let decryptedCookieStr = decrypt(encryptedCookieStr, userPassword);
+        let cookieObj = JSON.parse(decryptedCookieStr);
+        jar.setCookieSync(cookieObj.cookieString, instanceURL);
+        console.log("found cookie: " + decryptedCookieStr);
+        //let sessionStore = cookieObj.cookieJar.cookies.find((c: any) => c.key == "glide_session_store");
+        //sessionStore.expires //Parse Date and check if cookie is already expired;
+        return {
+            "token": cookieObj.token,
+            "cookieJar": cookieObj.cookieJar,
+            "wclient": wrapper(axios.create({ jar, baseURL: instanceURL}))
+        };
+    }
+
+    const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
+
     let loginFormData = new URLSearchParams({
         "user_name": user, "user_password": userPassword,
         "remember_me": "true", "sys_action": "sysverb_login"
@@ -39,6 +81,14 @@ async function login(instance: string, user: string, pass?: string): Promise<Log
     let responseBody = loginResponse.data;
     let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
     snClient.defaults.headers.common["X-UserToken"] = ck;
+
+    let cookieObjStr = JSON.stringify({
+        "cookieString": jar.getCookieStringSync(instanceURL),
+        "cookieJar": jar.toJSON(),
+        "token": ck
+    });
+    let encryptedCookieObj = encrypt(cookieObjStr, userPassword);
+    fs.writeFileSync(cookieFilePath, encryptedCookieObj, "utf-8");
     
     return {
         "token": ck,

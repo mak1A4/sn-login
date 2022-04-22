@@ -11,7 +11,7 @@ import { getPassword } from 'keytar';
 export interface LoginData {
     token: string,
     wclient: AxiosInstance,
-    cookieJar?: CookieJar
+    cookieJar: CookieJar
 }
 
 function encrypt(text: string, key: string): string {
@@ -39,9 +39,9 @@ async function testLogin(snClient: AxiosInstance, instance: string): Promise<boo
     return response.data.toString().indexOf("Instance name: " + instance) >= 0
 }
 
-async function login(instance: string, user: string): Promise<LoginData>;
-async function login(instance: string, user: string, pass?: string): Promise<LoginData>;
-async function login(instance: string, user: string, pass?: string): Promise<LoginData> {
+async function login(instance: string, user: string, mfa?: string): Promise<LoginData>;
+async function login(instance: string, user: string, pass?: string, mfa?: string): Promise<LoginData>;
+async function login(instance: string, user: string, pass?: string, mfa?: string): Promise<LoginData> {
 
     const INSTANCE_NAME = `${instance}.service-now.com`;
     let instanceURL: string = `https://${INSTANCE_NAME}`;
@@ -75,6 +75,7 @@ async function login(instance: string, user: string, pass?: string): Promise<Log
 
     const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
 
+    if (mfa) userPassword += mfa;
     let loginFormData = new URLSearchParams({
         "user_name": user, "user_password": userPassword,
         "remember_me": "true", "sys_action": "sysverb_login"
@@ -91,7 +92,7 @@ async function login(instance: string, user: string, pass?: string): Promise<Log
     snClient.defaults.headers.common["X-UserToken"] = ck;
     
     let loginSuccessful = await testLogin(snClient, instance);
-    if (!loginSuccessful) throw "Login failed";
+    if (!loginSuccessful) throw "Login failed, MFA required?";
 
     let cookieObjStr = JSON.stringify({
         "cookieJar": jar.toJSON(),

@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import axios, { AxiosInstance } from 'axios';
-import { CookieJar } from 'tough-cookie';
+import { Cookie, CookieJar } from 'tough-cookie';
 import { wrapper } from 'axios-cookiejar-support';
 import { URLSearchParams } from "url";
 import { getPassword } from 'keytar';
@@ -34,19 +34,24 @@ function decrypt(text: string, key: string): string {
 	return decrypted.toString();
 }
 
+async function testLogin(snClient: AxiosInstance, instance: string): Promise<boolean> {
+    let response = await snClient.get("/stats.do");
+    return response.data.toString().indexOf("Instance name: " + instance) >= 0
+}
+
 async function login(instance: string, user: string): Promise<LoginData>;
 async function login(instance: string, user: string, pass?: string): Promise<LoginData>;
 async function login(instance: string, user: string, pass?: string): Promise<LoginData> {
 
+    const INSTANCE_NAME = `${instance}.service-now.com`;
+    let instanceURL: string = `https://${INSTANCE_NAME}`;
+
     let userPassword = pass;
     if (!userPassword) {
-        let password = await getPassword(instance, user);
+        let password = await getPassword(INSTANCE_NAME, user);
         if (password) userPassword = password;
         else throw "Couldn't find user password";
     }
-
-    const INSTANCE_NAME = `${instance}.service-now.com`;
-    let instanceURL: string = `https://${INSTANCE_NAME}`;
 
     let jar = new CookieJar();
     let cookieFilePath = path.join(os.tmpdir(), `${instance}:${user}_cookie.json`);
@@ -54,15 +59,18 @@ async function login(instance: string, user: string, pass?: string): Promise<Log
         let encryptedCookieStr = fs.readFileSync(cookieFilePath, 'utf8');
         let decryptedCookieStr = decrypt(encryptedCookieStr, userPassword);
         let cookieObj = JSON.parse(decryptedCookieStr);
-        jar.setCookieSync(cookieObj.cookieString, instanceURL);
-        console.log("found cookie: " + decryptedCookieStr);
-        //let sessionStore = cookieObj.cookieJar.cookies.find((c: any) => c.key == "glide_session_store");
-        //sessionStore.expires //Parse Date and check if cookie is already expired;
-        return {
-            "token": cookieObj.token,
-            "cookieJar": cookieObj.cookieJar,
-            "wclient": wrapper(axios.create({ jar, baseURL: instanceURL}))
-        };
+        cookieObj.cookieJar.cookies.forEach((c: any) => {
+            var cookie = new Cookie(c);
+            jar.setCookieSync(cookie, instanceURL);
+        });
+        let wclient = wrapper(axios.create({ jar, baseURL: instanceURL}));
+        if (await testLogin(wclient, instance)) {
+            return {
+                "token": cookieObj.token,
+                "cookieJar": cookieObj.cookieJar,
+                "wclient": wclient
+            };
+        }
     }
 
     const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
@@ -81,9 +89,11 @@ async function login(instance: string, user: string, pass?: string): Promise<Log
     let responseBody = loginResponse.data;
     let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
     snClient.defaults.headers.common["X-UserToken"] = ck;
+    
+    let loginSuccessful = await testLogin(snClient, instance);
+    if (!loginSuccessful) throw "Login failed";
 
     let cookieObjStr = JSON.stringify({
-        "cookieString": jar.getCookieStringSync(instanceURL),
         "cookieJar": jar.toJSON(),
         "token": ck
     });

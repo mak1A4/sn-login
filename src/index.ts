@@ -67,7 +67,7 @@ async function login(instance: string, user: string, pass?: string, mfa?: string
         if (await testLogin(wclient, instance)) {
             return {
                 "token": cookieObj.token,
-                "cookieJar": cookieObj.cookieJar,
+                "cookieJar": jar,
                 "wclient": wclient
             };
         }

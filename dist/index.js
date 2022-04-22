@@ -111,7 +111,7 @@ function login(instance, user, pass, mfa) {
                     if (_a.sent()) {
                         return [2 /*return*/, {
                                 "token": cookieObj.token,
-                                "cookieJar": cookieObj.cookieJar,
+                                "cookieJar": jar,
                                 "wclient": wclient
                             }];
                     }

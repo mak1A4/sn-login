@@ -76,15 +76,15 @@ function testLogin(snClient, instance) {
         });
     });
 }
-function login(instance, user, pass, mfa) {
+function login(instance, user, auth) {
     return __awaiter(this, void 0, void 0, function () {
-        var INSTANCE_NAME, instanceURL, userPassword, password, jar, cookieFilePath, encryptedCookieStr, decryptedCookieStr, cookieObj, wclient, snClient, loginFormData, loginResponse, responseBody, ck, loginSuccessful, cookieObjStr, encryptedCookieObj;
+        var INSTANCE_NAME, instanceURL, userPassword, password, jar, cookieFilePath, encryptedCookieStr, decryptedCookieStr, cookieObj, wclient, snClient, loginPassword, loginFormData, loginResponse, responseBody, ck, loginSuccessful, cookieObjStr, encryptedCookieObj;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     INSTANCE_NAME = "".concat(instance, ".service-now.com");
                     instanceURL = "https://".concat(INSTANCE_NAME);
-                    userPassword = pass;
+                    userPassword = auth === null || auth === void 0 ? void 0 : auth.password;
                     if (!!userPassword) return [3 /*break*/, 2];
                     return [4 /*yield*/, (0, keytar_1.getPassword)(INSTANCE_NAME, user)];
                 case 1:
@@ -118,10 +118,11 @@ function login(instance, user, pass, mfa) {
                     _a.label = 4;
                 case 4:
                     snClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
-                    if (mfa)
-                        userPassword += mfa;
+                    loginPassword = userPassword;
+                    if (auth && auth.mfaToken)
+                        loginPassword += auth.mfaToken;
                     loginFormData = new url_1.URLSearchParams({
-                        "user_name": user, "user_password": userPassword,
+                        "user_name": user, "user_password": loginPassword,
                         "remember_me": "true", "sys_action": "sysverb_login"
                     }).toString();
                     return [4 /*yield*/, snClient.post("/login.do", loginFormData, {

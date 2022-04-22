@@ -10,7 +10,7 @@ test("Login with passwd", async () => {
     let instance = process.env.SN_INSTANCE as string;
     let user = process.env.SN_USER as string;
     let password = process.env.SN_PASS as string;
-    let loginResponse = await snlogin(instance, user, password);
+    let loginResponse = await snlogin(instance, user, { "password": password });
     let wclient = loginResponse.wclient;
 
     expect(await testLogin(wclient, instance)).toBe(true);

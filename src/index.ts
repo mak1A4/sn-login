@@ -14,6 +14,11 @@ export interface LoginData {
     cookieJar: CookieJar
 }
 
+export interface AuthInfo {
+    password?: string,
+    mfaToken?: string
+}
+
 function encrypt(text: string, key: string): string {
     let iv = crypto.randomBytes(16);
     let keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
@@ -39,14 +44,12 @@ async function testLogin(snClient: AxiosInstance, instance: string): Promise<boo
     return response.data.toString().indexOf("Instance name: " + instance) >= 0
 }
 
-async function login(instance: string, user: string, mfa?: string): Promise<LoginData>;
-async function login(instance: string, user: string, pass?: string, mfa?: string): Promise<LoginData>;
-async function login(instance: string, user: string, pass?: string, mfa?: string): Promise<LoginData> {
+async function login(instance: string, user: string, auth?: AuthInfo): Promise<LoginData> {
 
     const INSTANCE_NAME = `${instance}.service-now.com`;
     let instanceURL: string = `https://${INSTANCE_NAME}`;
 
-    let userPassword = pass;
+    let userPassword = auth?.password;
     if (!userPassword) {
         let password = await getPassword(INSTANCE_NAME, user);
         if (password) userPassword = password;
@@ -75,9 +78,10 @@ async function login(instance: string, user: string, pass?: string, mfa?: string
 
     const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
 
-    if (mfa) userPassword += mfa;
+    let loginPassword = userPassword;
+    if (auth && auth.mfaToken) loginPassword += auth.mfaToken;
     let loginFormData = new URLSearchParams({
-        "user_name": user, "user_password": userPassword,
+        "user_name": user, "user_password": loginPassword,
         "remember_me": "true", "sys_action": "sysverb_login"
     } as any).toString();
     let loginResponse = await snClient.post("/login.do", loginFormData, {

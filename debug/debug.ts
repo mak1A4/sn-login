@@ -5,8 +5,11 @@ import * as dotenv from 'dotenv';
 
     dotenv.config();
 
-    let instance = process.env.SN_INSTANCE as string;
-    let user = process.env.SN_USER as string;
+    /*let instance = process.env.SN_INSTANCE as string;
+    let user = process.env.SN_USER as string;*/
+    let instance = "devtwinformatics";
+    let user = "m.kirchweger@softpoint.at";
+    //let loginResponse = await snlogin(instance, user, { mfaToken: "502378" });
     let loginResponse = await snlogin(instance, user);
     let wclient = loginResponse.wclient;
 

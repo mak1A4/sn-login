@@ -7,7 +7,7 @@
         "request": "launch",
         "runtimeArgs": ["-r", "ts-node/register"],
         "runtimeExecutable": "node",
-        "args": ["--inspect", "${workspaceFolder}/debug/debug.ts"],
+        "args": ["--inspect", "${workspaceFolder}/debug.ts"],
         "cwd": "${workspaceRoot}",
         "skipFiles": ["<node_internals>/**", "node_modules/**"]
       }

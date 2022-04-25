@@ -1,36 +1,34 @@
-import snlogin from "../src/index";
+import snlogin, { LoginData } from "../src/index";
 import * as dotenv from 'dotenv';
 
 (async () => {
 
     dotenv.config();
 
-    /*let instance = process.env.SN_INSTANCE as string;
-    let user = process.env.SN_USER as string;*/
-    let instance = "devtwinformatics";
-    let user = "m.kirchweger@softpoint.at";
-    //let loginResponse = await snlogin(instance, user, { mfaToken: "502378" });
-    let loginResponse = await snlogin(instance, user);
-    let wclient = loginResponse.wclient;
+    try {
+        let instance = process.env.SN_INSTANCE as string;
+        let user = process.env.SN_USER as string;
+        let loginResponse = await snlogin(instance, user);
 
-    let testUrl = `https://${instance}.service-now.com/sys.scripts.do`;
-    let postFormData = new URLSearchParams({
-        "script": "gs.print('$$TEST_PASSED$$')",
-        "sysparm_ck": loginResponse.token,
-        "sys_scope": "global",
-        "runscript": "Run script",
-        "quota_managed_transaction": "on",
-        "record_for_rollback": "on"
-    } as any).toString();
+        let wclient = loginResponse.wclient;
 
-    var testResponse = await wclient.post(testUrl, postFormData, {
-        headers: {
-            "X-UserToken": loginResponse.token,
-            "Connection": "keep-alive",
-            "Cache-Control": "max-age=0",
-            "User-Agent": "SN-Node Client",
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
-    });
-    console.log(testResponse.data);
+        let postBodyObj = {
+            "sysparm_processor": "CleanTemplateInputName",
+            "sysparm_name": "createCleanName",
+            "sysparm_label": "TestLoginSuccessful",
+            "sysparm_scope": "global"
+        } as any;
+        let postFormData = new URLSearchParams(postBodyObj).toString();
+
+        let response = await wclient.post("/xmlhttp.do", postFormData, {
+            "headers": {
+                "X-UserToken": loginResponse.token
+            }
+        });
+        console.log(response.data);
+
+    } catch (e: any) {
+        console.error(e.toString());
+    }
+
 })();

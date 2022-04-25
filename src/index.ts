@@ -39,9 +39,25 @@ function decrypt(text: string, key: string): string {
 	return decrypted.toString();
 }
 
-async function testLogin(snClient: AxiosInstance, instance: string): Promise<boolean> {
-    let response = await snClient.get("/stats.do");
-    return response.data.toString().indexOf("Instance name: " + instance) >= 0
+async function testLogin(snClient: AxiosInstance, token: string): Promise<boolean> {
+    try {
+        let postBodyObj = {
+            "sysparm_processor": "CleanTemplateInputName",
+            "sysparm_name": "createCleanName",
+            "sysparm_label": "TestLoginSuccessful",
+            "sysparm_scope": "global"
+        } as any;
+        let postFormData = new URLSearchParams(postBodyObj).toString();
+    
+        let response = await snClient.post("/xmlhttp.do", postFormData, {
+            "headers": {
+                "X-UserToken": token
+            }
+        });
+        return response.data.indexOf(`answer="testloginsuccessful"`) >= 0;
+    } catch (err) {
+        return false;
+    }
 }
 
 async function login(instance: string, user: string, auth?: AuthInfo): Promise<LoginData> {
@@ -67,12 +83,15 @@ async function login(instance: string, user: string, auth?: AuthInfo): Promise<L
             jar.setCookieSync(cookie, instanceURL);
         });
         let wclient = wrapper(axios.create({ jar, baseURL: instanceURL}));
-        if (await testLogin(wclient, instance)) {
+        let loginSuccessful = await testLogin(wclient, cookieObj.token)
+        if (loginSuccessful === true) {
             return {
                 "token": cookieObj.token,
                 "cookieJar": jar,
                 "wclient": wclient
             };
+        } else {
+            jar = new CookieJar();
         }
     }
 
@@ -95,7 +114,7 @@ async function login(instance: string, user: string, auth?: AuthInfo): Promise<L
     let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
     snClient.defaults.headers.common["X-UserToken"] = ck;
     
-    let loginSuccessful = await testLogin(snClient, instance);
+    let loginSuccessful = await testLogin(snClient, ck);
     if (!loginSuccessful) throw "Login failed, MFA required?";
 
     let cookieObjStr = JSON.stringify({

@@ -63,22 +63,39 @@ function decrypt(text, key) {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
 }
-function testLogin(snClient, instance) {
+function testLogin(snClient, token) {
     return __awaiter(this, void 0, void 0, function () {
-        var response;
+        var postBodyObj, postFormData, response, err_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, snClient.get("/stats.do")];
+                case 0:
+                    _a.trys.push([0, 2, , 3]);
+                    postBodyObj = {
+                        "sysparm_processor": "CleanTemplateInputName",
+                        "sysparm_name": "createCleanName",
+                        "sysparm_label": "TestLoginSuccessful",
+                        "sysparm_scope": "global"
+                    };
+                    postFormData = new url_1.URLSearchParams(postBodyObj).toString();
+                    return [4 /*yield*/, snClient.post("/xmlhttp.do", postFormData, {
+                            "headers": {
+                                "X-UserToken": token
+                            }
+                        })];
                 case 1:
                     response = _a.sent();
-                    return [2 /*return*/, response.data.toString().indexOf("Instance name: " + instance) >= 0];
+                    return [2 /*return*/, response.data.indexOf("answer=\"testloginsuccessful\"") >= 0];
+                case 2:
+                    err_1 = _a.sent();
+                    return [2 /*return*/, false];
+                case 3: return [2 /*return*/];
             }
         });
     });
 }
 function login(instance, user, auth) {
     return __awaiter(this, void 0, void 0, function () {
-        var INSTANCE_NAME, instanceURL, userPassword, password, jar, cookieFilePath, encryptedCookieStr, decryptedCookieStr, cookieObj, wclient, snClient, loginPassword, loginFormData, loginResponse, responseBody, ck, loginSuccessful, cookieObjStr, encryptedCookieObj;
+        var INSTANCE_NAME, instanceURL, userPassword, password, jar, cookieFilePath, encryptedCookieStr, decryptedCookieStr, cookieObj, wclient, loginSuccessful_1, snClient, loginPassword, loginFormData, loginResponse, responseBody, ck, loginSuccessful, cookieObjStr, encryptedCookieObj;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -106,14 +123,18 @@ function login(instance, user, auth) {
                         jar.setCookieSync(cookie, instanceURL);
                     });
                     wclient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
-                    return [4 /*yield*/, testLogin(wclient, instance)];
+                    return [4 /*yield*/, testLogin(wclient, cookieObj.token)];
                 case 3:
-                    if (_a.sent()) {
+                    loginSuccessful_1 = _a.sent();
+                    if (loginSuccessful_1 === true) {
                         return [2 /*return*/, {
                                 "token": cookieObj.token,
                                 "cookieJar": jar,
                                 "wclient": wclient
                             }];
+                    }
+                    else {
+                        jar = new tough_cookie_1.CookieJar();
                     }
                     _a.label = 4;
                 case 4:
@@ -137,7 +158,7 @@ function login(instance, user, auth) {
                     responseBody = loginResponse.data;
                     ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
                     snClient.defaults.headers.common["X-UserToken"] = ck;
-                    return [4 /*yield*/, testLogin(snClient, instance)];
+                    return [4 /*yield*/, testLogin(snClient, ck)];
                 case 6:
                     loginSuccessful = _a.sent();
                     if (!loginSuccessful)

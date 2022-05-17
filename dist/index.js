@@ -53,6 +53,15 @@ function getMultiFactorToken(mfaKey) {
     });
     return totp.generate();
 }
+function getNowSession(axios, token) {
+    return {
+        "httpClient": axios,
+        "userToken": token,
+        "getCookieJar": function () {
+            return axios.defaults.jar;
+        }
+    };
+}
 function login(instance, user, password) {
     return __awaiter(this, void 0, void 0, function () {
         var INSTANCE_NAME, instanceURL, userPassword, iCred, jar, axiosClient, userToken, httpClient, loginPassword, mfaKeyResult, loginFormData, loginResponse, responseBody, ck, nowSession;
@@ -76,10 +85,7 @@ function login(instance, user, password) {
                     if ((0, cookie_store_1.checkUserSessionValid)(instance, jar)) {
                         axiosClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
                         userToken = (0, cookie_store_1.getUserToken)(instance, user, userPassword);
-                        return [2 /*return*/, {
-                                "httpClient": axiosClient,
-                                "userToken": userToken
-                            }];
+                        return [2 /*return*/, getNowSession(axiosClient, userToken)];
                     }
                     httpClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
                     loginPassword = userPassword;
@@ -108,10 +114,7 @@ function login(instance, user, password) {
                     }
                     ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
                     httpClient.defaults.headers.common["X-UserToken"] = ck;
-                    nowSession = {
-                        "httpClient": httpClient,
-                        "userToken": ck
-                    };
+                    nowSession = getNowSession(httpClient, ck);
                     (0, cookie_store_1.writeCookieStore)(instance, user, userPassword, nowSession);
                     return [2 /*return*/, nowSession];
             }

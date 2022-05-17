@@ -4,13 +4,15 @@ import { wrapper } from 'axios-cookiejar-support';
 import { URLSearchParams } from "url";
 import { getInstanceCredentials, getInstanceMultiFactorKey } from "./cred-store";
 import { getCookieJar, writeCookieStore, checkUserSessionValid, getUserToken } from "./cookie-store";
+import { CookieJar } from 'tough-cookie';
 
 export * as credentialStore from "./cred-store";
 export * as cookieStore from "./cookie-store";
 
 export interface NowSession {
     userToken: string,
-    httpClient: AxiosInstance
+    httpClient: AxiosInstance,
+    getCookieJar(): CookieJar
 }
 
 function getMultiFactorToken(mfaKey: string): string {
@@ -20,6 +22,16 @@ function getMultiFactorToken(mfaKey: string): string {
         "period": 30
     })
     return totp.generate();
+}
+
+function getNowSession(axios: AxiosInstance, token: string): NowSession {
+    return {
+        "httpClient": axios,
+        "userToken": token,
+        "getCookieJar": () => {
+            return axios.defaults.jar as CookieJar;
+        }
+    }
 }
 
 async function login(instance: string, user: string, password?: string): Promise<NowSession> {
@@ -38,10 +50,7 @@ async function login(instance: string, user: string, password?: string): Promise
     if (checkUserSessionValid(instance, jar)) {
         let axiosClient = wrapper(axios.create({ jar, baseURL: instanceURL }));
         let userToken = getUserToken(instance, user, userPassword);
-        return {
-            "httpClient": axiosClient,
-            "userToken": userToken
-        };
+        return getNowSession(axiosClient, userToken);
     }
 
     const httpClient = wrapper(axios.create({ jar, baseURL: instanceURL }));
@@ -70,10 +79,7 @@ async function login(instance: string, user: string, password?: string): Promise
     let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
     httpClient.defaults.headers.common["X-UserToken"] = ck;
 
-    let nowSession = {
-        "httpClient": httpClient,
-        "userToken": ck
-    };
+    let nowSession = getNowSession(httpClient, ck);
     writeCookieStore(instance, user, userPassword, nowSession);
     return nowSession;
 }

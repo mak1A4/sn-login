@@ -25,6 +25,7 @@
   "homepage": "https://github.com/mak1A4/sn-login#readme",
   "devDependencies": {
     "@types/jest": "^27.4.1",
+    "@types/luxon": "^2.3.2",
     "@types/minimist": "^1.2.2",
     "@types/node": "^17.0.25",
     "@types/tough-cookie": "^4.0.1",
@@ -39,7 +40,10 @@
     "axios": "^0.26.0",
     "axios-cookiejar-support": "^2.0.3",
     "keytar": "^7.9.0",
+    "luxon": "^2.4.0",
     "minimist": "^1.2.6",
+    "otpauth": "^7.1.2",
+    "stopwatch-node": "^1.1.0",
     "tough-cookie": "^4.0.0"
   }
 }

@@ -36,144 +36,84 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var os = require("os");
-var fs = require("fs");
-var path = require("path");
-var crypto = require("crypto");
+exports.cookieStore = exports.credentialStore = void 0;
+var OTPAuth = require("otpauth");
 var axios_1 = require("axios");
-var tough_cookie_1 = require("tough-cookie");
 var axios_cookiejar_support_1 = require("axios-cookiejar-support");
 var url_1 = require("url");
-var keytar_1 = require("keytar");
-function encrypt(text, key) {
-    var iv = crypto.randomBytes(16);
-    var keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
-    var cipher = crypto.createCipheriv("aes-256-ctr", Buffer.from(keyHash, "hex"), iv);
-    var encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return iv.toString("hex") + ':' + encrypted.toString("hex");
-}
-function decrypt(text, key) {
-    var textParts = text.split(":");
-    var iv = Buffer.from(textParts.shift(), "hex");
-    var encryptedText = Buffer.from(textParts.join(":"), "hex");
-    var keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
-    var decipher = crypto.createDecipheriv("aes-256-ctr", Buffer.from(keyHash, "hex"), iv);
-    var decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
-}
-function testLogin(snClient, token) {
-    return __awaiter(this, void 0, void 0, function () {
-        var postBodyObj, postFormData, response, err_1;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    _a.trys.push([0, 2, , 3]);
-                    postBodyObj = {
-                        "sysparm_processor": "CleanTemplateInputName",
-                        "sysparm_name": "createCleanName",
-                        "sysparm_label": "TestLoginSuccessful",
-                        "sysparm_scope": "global"
-                    };
-                    postFormData = new url_1.URLSearchParams(postBodyObj).toString();
-                    return [4 /*yield*/, snClient.post("/xmlhttp.do", postFormData, {
-                            "headers": {
-                                "X-UserToken": token
-                            }
-                        })];
-                case 1:
-                    response = _a.sent();
-                    return [2 /*return*/, response.data.indexOf("answer=\"testloginsuccessful\"") >= 0];
-                case 2:
-                    err_1 = _a.sent();
-                    return [2 /*return*/, false];
-                case 3: return [2 /*return*/];
-            }
-        });
+var cred_store_1 = require("./cred-store");
+var cookie_store_1 = require("./cookie-store");
+exports.credentialStore = require("./cred-store");
+exports.cookieStore = require("./cookie-store");
+function getMultiFactorToken(mfaKey) {
+    var totp = new OTPAuth.TOTP({
+        "secret": mfaKey,
+        "digits": 6,
+        "period": 30
     });
+    return totp.generate();
 }
-function login(instance, user, auth) {
+function login(instance, user, password) {
     return __awaiter(this, void 0, void 0, function () {
-        var INSTANCE_NAME, instanceURL, userPassword, password, jar, cookieFilePath, encryptedCookieStr, decryptedCookieStr, cookieObj, wclient, loginSuccessful_1, snClient, loginPassword, loginFormData, loginResponse, responseBody, ck, loginSuccessful, cookieObjStr, encryptedCookieObj;
+        var INSTANCE_NAME, instanceURL, userPassword, iCred, jar, axiosClient, userToken, httpClient, loginPassword, mfaKeyResult, loginFormData, loginResponse, responseBody, ck, nowSession;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     INSTANCE_NAME = "".concat(instance, ".service-now.com");
                     instanceURL = "https://".concat(INSTANCE_NAME);
-                    userPassword = auth === null || auth === void 0 ? void 0 : auth.password;
+                    userPassword = password;
                     if (!!userPassword) return [3 /*break*/, 2];
-                    return [4 /*yield*/, (0, keytar_1.getPassword)(INSTANCE_NAME, user)];
+                    return [4 /*yield*/, (0, cred_store_1.getInstanceCredentials)(instance, user)];
                 case 1:
-                    password = _a.sent();
-                    if (password)
-                        userPassword = password;
+                    iCred = _a.sent();
+                    if (iCred.password)
+                        userPassword = iCred.password;
                     else
                         throw "Couldn't find user password";
                     _a.label = 2;
                 case 2:
-                    jar = new tough_cookie_1.CookieJar();
-                    cookieFilePath = path.join(os.tmpdir(), "".concat(instance, ":").concat(user, "_cookie.json"));
-                    if (!fs.existsSync(cookieFilePath)) return [3 /*break*/, 4];
-                    encryptedCookieStr = fs.readFileSync(cookieFilePath, 'utf8');
-                    decryptedCookieStr = decrypt(encryptedCookieStr, userPassword);
-                    cookieObj = JSON.parse(decryptedCookieStr);
-                    cookieObj.cookieJar.cookies.forEach(function (c) {
-                        var cookie = new tough_cookie_1.Cookie(c);
-                        jar.setCookieSync(cookie, instanceURL);
-                    });
-                    wclient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
-                    return [4 /*yield*/, testLogin(wclient, cookieObj.token)];
-                case 3:
-                    loginSuccessful_1 = _a.sent();
-                    if (loginSuccessful_1 === true) {
+                    jar = (0, cookie_store_1.getCookieJar)(instance, user, userPassword);
+                    if ((0, cookie_store_1.checkUserSessionValid)(instance, jar)) {
+                        axiosClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
+                        userToken = (0, cookie_store_1.getUserToken)(instance, user, userPassword);
                         return [2 /*return*/, {
-                                "token": cookieObj.token,
-                                "cookieJar": jar,
-                                "wclient": wclient
+                                "httpClient": axiosClient,
+                                "userToken": userToken
                             }];
                     }
-                    else {
-                        jar = new tough_cookie_1.CookieJar();
-                    }
-                    _a.label = 4;
-                case 4:
-                    snClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
+                    httpClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
                     loginPassword = userPassword;
-                    if (auth && auth.mfaToken)
-                        loginPassword += auth.mfaToken;
+                    return [4 /*yield*/, (0, cred_store_1.getInstanceMultiFactorKey)(instance, user)];
+                case 3:
+                    mfaKeyResult = _a.sent();
+                    if (mfaKeyResult.mfaKey) {
+                        loginPassword += getMultiFactorToken(mfaKeyResult.mfaKey);
+                    }
                     loginFormData = new url_1.URLSearchParams({
                         "user_name": user, "user_password": loginPassword,
                         "remember_me": "true", "sys_action": "sysverb_login"
                     }).toString();
-                    return [4 /*yield*/, snClient.post("/login.do", loginFormData, {
+                    return [4 /*yield*/, httpClient.post("/login.do", loginFormData, {
                             headers: {
                                 "Connection": "keep-alive",
                                 "Cache-Control": "max-age=0",
                                 "Content-Type": "application/x-www-form-urlencoded"
                             }
                         })];
-                case 5:
+                case 4:
                     loginResponse = _a.sent();
                     responseBody = loginResponse.data;
+                    if (responseBody.indexOf('id="sysverb_login"') >= 0) {
+                        throw "Login failed";
+                    }
                     ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
-                    snClient.defaults.headers.common["X-UserToken"] = ck;
-                    return [4 /*yield*/, testLogin(snClient, ck)];
-                case 6:
-                    loginSuccessful = _a.sent();
-                    if (!loginSuccessful)
-                        throw "Login failed, MFA required?";
-                    cookieObjStr = JSON.stringify({
-                        "cookieJar": jar.toJSON(),
-                        "token": ck
-                    });
-                    encryptedCookieObj = encrypt(cookieObjStr, userPassword);
-                    fs.writeFileSync(cookieFilePath, encryptedCookieObj, "utf-8");
-                    return [2 /*return*/, {
-                            "token": ck,
-                            "cookieJar": jar,
-                            "wclient": snClient
-                        }];
+                    httpClient.defaults.headers.common["X-UserToken"] = ck;
+                    nowSession = {
+                        "httpClient": httpClient,
+                        "userToken": ck
+                    };
+                    (0, cookie_store_1.writeCookieStore)(instance, user, userPassword, nowSession);
+                    return [2 /*return*/, nowSession];
             }
         });
     });

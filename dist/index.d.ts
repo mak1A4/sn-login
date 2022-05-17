@@ -1,13 +1,9 @@
 import { AxiosInstance } from 'axios';
-import { CookieJar } from 'tough-cookie';
-export interface LoginData {
-    token: string;
-    wclient: AxiosInstance;
-    cookieJar: CookieJar;
+export * as credentialStore from "./cred-store";
+export * as cookieStore from "./cookie-store";
+export interface NowSession {
+    userToken: string;
+    httpClient: AxiosInstance;
 }
-export interface AuthInfo {
-    password?: string;
-    mfaToken?: string;
-}
-declare function login(instance: string, user: string, auth?: AuthInfo): Promise<LoginData>;
+declare function login(instance: string, user: string, password?: string): Promise<NowSession>;
 export default login;

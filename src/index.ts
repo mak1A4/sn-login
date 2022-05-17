@@ -1,109 +1,61 @@
-import * as os from 'os';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as crypto from 'crypto';
+import * as OTPAuth from 'otpauth';
 import axios, { AxiosInstance } from 'axios';
-import { Cookie, CookieJar } from 'tough-cookie';
 import { wrapper } from 'axios-cookiejar-support';
 import { URLSearchParams } from "url";
-import { getPassword } from 'keytar';
+import { getInstanceCredentials, getInstanceMultiFactorKey } from "./cred-store";
+import { getCookieJar, writeCookieStore, checkUserSessionValid, getUserToken } from "./cookie-store";
 
-export interface LoginData {
-    token: string,
-    wclient: AxiosInstance,
-    cookieJar: CookieJar
+export * as credentialStore from "./cred-store";
+export * as cookieStore from "./cookie-store";
+
+export interface NowSession {
+    userToken: string,
+    httpClient: AxiosInstance
 }
 
-export interface AuthInfo {
-    password?: string,
-    mfaToken?: string
+function getMultiFactorToken(mfaKey: string): string {
+    let totp = new OTPAuth.TOTP({
+        "secret": mfaKey,
+        "digits": 6,
+        "period": 30
+    })
+    return totp.generate();
 }
 
-function encrypt(text: string, key: string): string {
-    let iv = crypto.randomBytes(16);
-    let keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
-	let cipher = crypto.createCipheriv("aes-256-ctr", Buffer.from(keyHash, "hex"), iv);
-	let encrypted = cipher.update(text);
-	encrypted = Buffer.concat([encrypted, cipher.final()]);
-	return iv.toString("hex") + ':' + encrypted.toString("hex");
-}
-
-function decrypt(text: string, key: string): string {
-    let textParts = text.split(":");
-	let iv = Buffer.from(textParts.shift() as string, "hex");
-	let encryptedText = Buffer.from(textParts.join(":"), "hex");
-    let keyHash = crypto.createHash('sha256').update(String(key)).digest("hex");
-	let decipher = crypto.createDecipheriv("aes-256-ctr", Buffer.from(keyHash, "hex"), iv);
-	let decrypted = decipher.update(encryptedText);
-	decrypted = Buffer.concat([decrypted, decipher.final()]);
-	return decrypted.toString();
-}
-
-async function testLogin(snClient: AxiosInstance, token: string): Promise<boolean> {
-    try {
-        let postBodyObj = {
-            "sysparm_processor": "CleanTemplateInputName",
-            "sysparm_name": "createCleanName",
-            "sysparm_label": "TestLoginSuccessful",
-            "sysparm_scope": "global"
-        } as any;
-        let postFormData = new URLSearchParams(postBodyObj).toString();
-    
-        let response = await snClient.post("/xmlhttp.do", postFormData, {
-            "headers": {
-                "X-UserToken": token
-            }
-        });
-        return response.data.indexOf(`answer="testloginsuccessful"`) >= 0;
-    } catch (err) {
-        return false;
-    }
-}
-
-async function login(instance: string, user: string, auth?: AuthInfo): Promise<LoginData> {
+async function login(instance: string, user: string, password?: string): Promise<NowSession> {
 
     const INSTANCE_NAME = `${instance}.service-now.com`;
     let instanceURL: string = `https://${INSTANCE_NAME}`;
 
-    let userPassword = auth?.password;
+    let userPassword = password;
     if (!userPassword) {
-        let password = await getPassword(INSTANCE_NAME, user);
-        if (password) userPassword = password;
+        let iCred = await getInstanceCredentials(instance, user);
+        if (iCred.password) userPassword = iCred.password;
         else throw "Couldn't find user password";
     }
 
-    let jar = new CookieJar();
-    let cookieFilePath = path.join(os.tmpdir(), `${instance}:${user}_cookie.json`);
-    if (fs.existsSync(cookieFilePath)) {
-        let encryptedCookieStr = fs.readFileSync(cookieFilePath, 'utf8');
-        let decryptedCookieStr = decrypt(encryptedCookieStr, userPassword);
-        let cookieObj = JSON.parse(decryptedCookieStr);
-        cookieObj.cookieJar.cookies.forEach((c: any) => {
-            var cookie = new Cookie(c);
-            jar.setCookieSync(cookie, instanceURL);
-        });
-        let wclient = wrapper(axios.create({ jar, baseURL: instanceURL}));
-        let loginSuccessful = await testLogin(wclient, cookieObj.token)
-        if (loginSuccessful === true) {
-            return {
-                "token": cookieObj.token,
-                "cookieJar": jar,
-                "wclient": wclient
-            };
-        } else {
-            jar = new CookieJar();
-        }
+    let jar = getCookieJar(instance, user, userPassword);
+    if (checkUserSessionValid(instance, jar)) {
+        let axiosClient = wrapper(axios.create({ jar, baseURL: instanceURL }));
+        let userToken = getUserToken(instance, user, userPassword);
+        return {
+            "httpClient": axiosClient,
+            "userToken": userToken
+        };
     }
 
-    const snClient = wrapper(axios.create({ jar, baseURL: instanceURL}));
+    const httpClient = wrapper(axios.create({ jar, baseURL: instanceURL }));
 
     let loginPassword = userPassword;
-    if (auth && auth.mfaToken) loginPassword += auth.mfaToken;
+    let mfaKeyResult = await getInstanceMultiFactorKey(instance, user);
+    if (mfaKeyResult.mfaKey) {
+        loginPassword += getMultiFactorToken(mfaKeyResult.mfaKey);
+    }
     let loginFormData = new URLSearchParams({
         "user_name": user, "user_password": loginPassword,
         "remember_me": "true", "sys_action": "sysverb_login"
     } as any).toString();
-    let loginResponse = await snClient.post("/login.do", loginFormData, {
+    let loginResponse = await httpClient.post("/login.do", loginFormData, {
         headers: {
             "Connection": "keep-alive",
             "Cache-Control": "max-age=0",
@@ -111,23 +63,18 @@ async function login(instance: string, user: string, auth?: AuthInfo): Promise<L
         }
     });
     let responseBody = loginResponse.data;
-    let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
-    snClient.defaults.headers.common["X-UserToken"] = ck;
-    
-    let loginSuccessful = await testLogin(snClient, ck);
-    if (!loginSuccessful) throw "Login failed, MFA required?";
+    if (responseBody.indexOf('id="sysverb_login"') >= 0) {
+        throw "Login failed";
+    }
 
-    let cookieObjStr = JSON.stringify({
-        "cookieJar": jar.toJSON(),
-        "token": ck
-    });
-    let encryptedCookieObj = encrypt(cookieObjStr, userPassword);
-    fs.writeFileSync(cookieFilePath, encryptedCookieObj, "utf-8");
-    
-    return {
-        "token": ck,
-        "cookieJar": jar,
-        "wclient": snClient
+    let ck = responseBody.split("var g_ck = '")[1].split('\'')[0];
+    httpClient.defaults.headers.common["X-UserToken"] = ck;
+
+    let nowSession = {
+        "httpClient": httpClient,
+        "userToken": ck
     };
+    writeCookieStore(instance, user, userPassword, nowSession);
+    return nowSession;
 }
 export default login;

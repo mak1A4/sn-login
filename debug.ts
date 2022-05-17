@@ -10,7 +10,7 @@ import * as dotenv from 'dotenv';
         let user = process.env.SN_USER as string;
         let loginResponse = await snlogin(instance, user);
 
-        let wclient = loginResponse.wclient;
+        let wclient = loginResponse.httpClient;
 
         let postBodyObj = {
             "sysparm_processor": "CleanTemplateInputName",
@@ -22,7 +22,7 @@ import * as dotenv from 'dotenv';
 
         let response = await wclient.post("/xmlhttp.do", postFormData, {
             "headers": {
-                "X-UserToken": loginResponse.token
+                "X-UserToken": loginResponse.userToken
             }
         });
         console.log(response.data);

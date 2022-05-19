@@ -1,4 +1,4 @@
-import snlogin from "./src/index";
+import snlogin, { credentialStore } from "./src/index";
 import * as dotenv from 'dotenv';
 
 (async () => {

@@ -62,7 +62,7 @@ function getNowSession(axios, token) {
         }
     };
 }
-function login(instance, user, password) {
+function login(instance, user, password, newSession) {
     return __awaiter(this, void 0, void 0, function () {
         var INSTANCE_NAME, instanceURL, userPassword, iCred, jar, axiosClient, userToken, httpClient, loginPassword, mfaKeyResult, loginFormData, loginResponse, responseBody, ck, nowSession;
         return __generator(this, function (_a) {
@@ -82,7 +82,7 @@ function login(instance, user, password) {
                     _a.label = 2;
                 case 2:
                     jar = (0, cookie_store_1.getCookieJar)(instance, user, userPassword);
-                    if ((0, cookie_store_1.checkUserSessionValid)(instance, jar)) {
+                    if (newSession !== true && (0, cookie_store_1.checkUserSessionValid)(instance, jar)) {
                         axiosClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create({ jar: jar, baseURL: instanceURL }));
                         userToken = (0, cookie_store_1.getUserToken)(instance, user, userPassword);
                         return [2 /*return*/, getNowSession(axiosClient, userToken)];

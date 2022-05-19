@@ -7,5 +7,5 @@ export interface NowSession {
     httpClient: AxiosInstance;
     getCookieJar(): CookieJar;
 }
-declare function login(instance: string, user: string, password?: string): Promise<NowSession>;
+declare function login(instance: string, user: string, password?: string, newSession?: boolean): Promise<NowSession>;
 export default login;

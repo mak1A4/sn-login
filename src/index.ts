@@ -34,7 +34,7 @@ function getNowSession(axios: AxiosInstance, token: string): NowSession {
     }
 }
 
-async function login(instance: string, user: string, password?: string): Promise<NowSession> {
+async function login(instance: string, user: string, password?: string, newSession?: boolean): Promise<NowSession> {
 
     const INSTANCE_NAME = `${instance}.service-now.com`;
     let instanceURL: string = `https://${INSTANCE_NAME}`;
@@ -47,7 +47,7 @@ async function login(instance: string, user: string, password?: string): Promise
     }
 
     let jar = getCookieJar(instance, user, userPassword);
-    if (checkUserSessionValid(instance, jar)) {
+    if (newSession !== true && checkUserSessionValid(instance, jar)) {
         let axiosClient = wrapper(axios.create({ jar, baseURL: instanceURL }));
         let userToken = getUserToken(instance, user, userPassword);
         return getNowSession(axiosClient, userToken);
